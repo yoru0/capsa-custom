@@ -11,10 +11,13 @@ import (
 
 func StartGame() {
 	players := CreatePlayers()
-	current := 0
 	winners := make(map[int]bool)
 	playersWon := 0
 	var winnerList []Winner
+	
+	current := TurnFirst(players)
+	fmt.Printf("Player %d's turn.\n", current + 1)
+	WaitForEnter()
 
 	for playersWon < 3 {
 		if winners[current] {
@@ -45,7 +48,7 @@ func StartGame() {
 	}
 	lastPlaceName := LastPlace(winnerList)
 	winnerList = AppendWinner(winnerList, lastPlaceName, 4)
-	
+
 	ShowWinners(winnerList)
 }
 
