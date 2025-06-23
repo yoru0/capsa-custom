@@ -12,53 +12,120 @@ import (
 func StartGame() {
 	players := CreatePlayers()
 	current := 0
+	winners := make(map[int]bool)
 	playersWon := 0
-	gameOver := false
+	var winnerList []Winner
 
-	for !gameOver {
-		fmt.Printf("%s's turn\n", players[current].Name)
-		fmt.Printf("Your cards:\n")
+	for playersWon < 3 {
+		if winners[current] {
+			current = (current + 1) % len(players)
+			continue
+		}
 
-		ShowDeck(players[current].Hand)
+		player := &players[current]
+		fmt.Printf("%s's turn\n", player.Name)
+		fmt.Printf("Your cards [%d card(s)]:\n", len(player.Hand))
+		ShowDeck(player.Hand)
 
+		selected, picks, comboName := GetValidCombo(player.Hand)
+		fmt.Printf("Combo played: %s\n", comboName)
+		fmt.Println("[DEBUG]", selected)
+
+		RemoveSelectedCards(&player.Hand, picks)
+
+		if len(player.Hand) == 0 {
+			fmt.Printf("%s wins!\n", player.Name)
+			winners[current] = true
+			playersWon++
+			winnerList = AppendWinner(winnerList, player.Name, playersWon)
+		}
+
+		current = (current + 1) % len(players)
+		WaitForEnter()
+	}
+	lastPlaceName := LastPlace(winnerList)
+	winnerList = AppendWinner(winnerList, lastPlaceName, 4)
+	
+	ShowWinners(winnerList)
+}
+
+func RemoveSelectedCards(hand *[]Card, picks []int) {
+	sort.Sort(sort.Reverse(sort.IntSlice(picks)))
+	for _, i := range picks {
+		if i >= 0 && i < len(*hand) {
+			*hand = append((*hand)[:i], (*hand)[i+1:]...)
+		}
+	}
+}
+
+func GetValidCombo(hand []Card) ([]Card, []int, string) {
+	for {
 		picks, err := PickCards()
-
 		if err != nil {
 			fmt.Println("Error:", err)
 			fmt.Println()
 			continue
 		}
 
-		fmt.Println("You picked:", picks)
-
-		sort.Sort(sort.Reverse(sort.IntSlice(picks)))
-		for _, i := range picks {
-			if i >= 0 && i < len(players[current].Hand) {
-				players[current].Hand = RemoveAtIndex(players[current].Hand, i)
-			}
+		selected := ExtractCards(hand, picks)
+		if isValid, combo := CheckCombo(selected); isValid {
+			return selected, picks, combo
 		}
 
-		fmt.Println("Hand length:", len(players[current].Hand))
+		fmt.Println("Invalid combo, try again.")
+		fmt.Println()
+	}
+}
 
-		if len(players[current].Hand) == 0 {
-			fmt.Printf("%s wins!\n", players[current].Name)
-			playersWon++
+func CheckCombo(selected []Card) (bool, string) {
+	length := len(selected)
+
+	switch length {
+	case 0:
+		return true, "Skip"
+	case 1:
+		return true, "Single"
+	case 2:
+		if IsPair(selected) {
+			return true, "Pair"
 		}
-
-		if playersWon == 3 {
-			gameOver = true
+	case 3:
+		if IsTriple(selected) {
+			return true, "Triple"
 		}
-
-		current = (current + 1) % len(players)
-
-		WaitForEnter()
+	case 5:
+		switch {
+		case IsStraightFlush(selected):
+			return true, "Straight Flush"
+		case IsFourOfAKind(selected):
+			return true, "Four of a Kind"
+		case IsFullHouse(selected):
+			return true, "Full House"
+		case IsFlush(selected):
+			return true, "Flush"
+		case IsStraight(selected):
+			return true, "Straight"
+		}
+		fmt.Println("Invalid combo...")
+	default:
+		fmt.Println("Invalid combo length.")
 	}
 
+	return false, ""
+}
+
+func ExtractCards(hand []Card, picks []int) []Card {
+	var selected []Card
+	for _, i := range picks {
+		if i >= 0 && i < len(hand) {
+			selected = append(selected, hand[i])
+		}
+	}
+	return selected
 }
 
 func PickCards() ([]int, error) {
 	fmt.Print("Pick your cards: ")
-
 	reader := bufio.NewReader(os.Stdin)
 	line, _ := reader.ReadString('\n')
 	parts := strings.Fields(line)
@@ -72,12 +139,7 @@ func PickCards() ([]int, error) {
 		}
 		picks = append(picks, num-1)
 	}
-
 	return picks, nil
-}
-
-func RemoveAtIndex(hand []Card, index int) []Card {
-	return append(hand[:index], hand[index+1:]...)
 }
 
 func WaitForEnter() {
