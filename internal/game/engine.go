@@ -15,6 +15,7 @@ func StartGame() {
 	playersWon := 0
 	var winnerList []Winner
 	
+	
 	current := TurnFirst(players)
 	fmt.Printf("Player %d's turn.\n", current + 1)
 	WaitForEnter()
@@ -63,7 +64,7 @@ func RemoveSelectedCards(hand *[]Card, picks []int) {
 
 func GetValidCombo(hand []Card) ([]Card, []int, string) {
 	for {
-		picks, err := PickCards()
+		picks, err := PickCards(hand)
 		if err != nil {
 			fmt.Println("Error:", err)
 			fmt.Println()
@@ -127,22 +128,33 @@ func ExtractCards(hand []Card, picks []int) []Card {
 	return selected
 }
 
-func PickCards() ([]int, error) {
-	fmt.Print("Pick your cards: ")
+func PickCards(hand []Card) ([]int, error) {
 	reader := bufio.NewReader(os.Stdin)
-	line, _ := reader.ReadString('\n')
-	parts := strings.Fields(line)
 
-	var picks []int
+	for {
+		fmt.Print("Pick your cards: ")
+		line, _ := reader.ReadString('\n')
+		parts := strings.Fields(line)
 
-	for _, part := range parts {
-		num, err := strconv.Atoi(part)
-		if err != nil {
-			return nil, fmt.Errorf("invalid input: %s", part)
+		var picks []int
+		valid := true
+
+		for _, part := range parts {
+			num, err := strconv.Atoi(part)
+			if err != nil || num < 1 || num > len(hand) {
+				fmt.Println("Invalid input:", part)
+				valid = false
+				break
+			}
+			picks = append(picks, num-1)
 		}
-		picks = append(picks, num-1)
+		
+		if valid {
+			return picks, nil
+		}
+		
+		fmt.Println("Please enter valid numbers between 1 and", len(hand))
 	}
-	return picks, nil
 }
 
 func WaitForEnter() {
